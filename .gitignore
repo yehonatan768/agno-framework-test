@@ -18,13 +18,12 @@ venv/
 # Data & models
 data/
 dataset/
-questions_for_agents/
+questions_for_agents
 *.pkl
 *.pt
 *.pth
 *.onnx
 *.h5
-*.zip
 
 # Logs & outputs
 logs/
