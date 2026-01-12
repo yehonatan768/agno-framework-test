@@ -1,0 +1,18 @@
+==================================
+           For Windows
+==================================
+Run in PowerShell:
+
+Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass
+.\windows_setup.ps1
+
+==================================
+           For Linux
+==================================
+Make it executable:
+
+chmod +x linux_setup.sh
+
+Run:
+
+./linux_setup.sh
