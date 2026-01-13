@@ -1,0 +1,62 @@
+provider:
+  name: "mbta"
+
+  static:
+    type: "gtfs_static_zip"
+    url: "https://cdn.mbta.com/MBTA_GTFS.zip"
+    out_dir: "dataset/static"
+    filename: "gtfs_static.zip"
+    timeout_s: 60
+    verify_tls: true
+
+    # Extraction policy for static GTFS zip
+    extract:
+
+      # Files To Extract
+      files:
+        - "agency.txt"
+        - "stops.txt"
+        - "routes.txt"
+        - "trips.txt"
+        - "stop_times.txt"
+        - "calendar.txt"
+        - "calendar_dates.txt"
+        - "shapes.txt"
+        - "route_patterns.txt"
+        - "directions.txt"
+        - "transfers.txt"
+        - "pathways.txt"
+        - "levels.txt"
+        - "stop_areas.txt"
+        - "areas.txt"
+        - "timeframes.txt"
+        - "lines.txt"
+
+  realtime:
+    type: "gtfs_realtime"
+    out_dir: "dataset/realtime"
+
+    endpoints:
+      - name: "vehicle_positions"
+        url: "https://cdn.mbta.com/realtime/VehiclePositions.pb"
+        format: "protobuf"
+        filename: "vehicle_positions.pb"
+
+      - name: "trip_updates"
+        url: "https://cdn.mbta.com/realtime/TripUpdates.pb"
+        format: "protobuf"
+        filename: "trip_updates.pb"
+
+      - name: "alerts"
+        url: "https://cdn.mbta.com/realtime/Alerts.pb"
+        format: "protobuf"
+        filename: "alerts.pb"
+
+    auth:
+      mode: "none"
+      header_name: "x-api-key"
+      query_param: "api_key"
+      env_var: "TRANSPORT_API_KEY"
+
+    timeout_s: 60
+    verify_tls: true
