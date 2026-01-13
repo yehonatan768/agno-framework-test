@@ -16,14 +16,15 @@ venv/
 .ipynb_checkpoints/
 
 # Data & models
-dataset/
+realtime/
+static/
 questions_for_agents
 *.pkl
 *.pt
 *.pth
 *.onnx
 *.h5
-
+*.zip
 # Logs & outputs
 logs/
 outputs/
