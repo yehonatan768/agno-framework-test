@@ -16,7 +16,6 @@ venv/
 .ipynb_checkpoints/
 
 # Data & models
-data/
 dataset/
 questions_for_agents
 *.pkl
