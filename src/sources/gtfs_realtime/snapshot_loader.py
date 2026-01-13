@@ -8,6 +8,8 @@ from typing import Optional, Dict, Any, List
 import pandas as pd
 from google.transit import gtfs_realtime_pb2
 
+from .pb_reader import parse_feed, feed_timestamp
+
 
 @dataclass(frozen=True)
 class SnapshotFrames:
@@ -31,20 +33,6 @@ class SnapshotLoader:
         self.trip_updates_filename = trip_updates_filename
         self.alerts_filename = alerts_filename
         self.logger = logger or logging.getLogger(__name__)
-
-    @staticmethod
-    def _parse_feed(pb_path: Path) -> gtfs_realtime_pb2.FeedMessage:
-        feed = gtfs_realtime_pb2.FeedMessage()
-        feed.ParseFromString(pb_path.read_bytes())
-        return feed
-
-    @staticmethod
-    def _feed_timestamp(feed: gtfs_realtime_pb2.FeedMessage) -> Optional[int]:
-        try:
-            ts = int(feed.header.timestamp)
-            return ts if ts > 0 else None
-        except Exception:
-            return None
 
     @staticmethod
     def _vehicle_positions_df(feed: gtfs_realtime_pb2.FeedMessage, feed_ts: Optional[int]) -> pd.DataFrame:
@@ -150,56 +138,22 @@ class SnapshotLoader:
 
         feed_ts: Optional[int] = None
 
-        # VehiclePositions
         if vp_path.exists():
-            try:
-                vp_feed = self._parse_feed(vp_path)
-                feed_ts = self._feed_timestamp(vp_feed)
-                vp_df = self._vehicle_positions_df(vp_feed, feed_ts)
-                self.logger.info("Parsed VehiclePositions | path=%s | rows=%d | feed_ts=%s", vp_path, len(vp_df), feed_ts)
-            except Exception:
-                self.logger.error("Failed parsing VehiclePositions | path=%s", vp_path, exc_info=True)
-                raise
+            vp_feed = parse_feed(vp_path)
+            feed_ts = feed_timestamp(vp_feed)
+            vp_df = self._vehicle_positions_df(vp_feed, feed_ts)
+            self.logger.info("Parsed VehiclePositions | path=%s | rows=%d | feed_ts=%s", vp_path, len(vp_df), feed_ts)
         else:
             self.logger.warning("Missing VehiclePositions file | expected=%s", vp_path)
             vp_df = pd.DataFrame()
 
-        # TripUpdates
         if tu_path.exists():
-            try:
-                tu_feed = self._parse_feed(tu_path)
-                feed_ts = feed_ts or self._feed_timestamp(tu_feed)
-                tu_df, stu_df = self._trip_updates_df(tu_feed, feed_ts)
-                self.logger.info(
-                    "Parsed TripUpdates | path=%s | trips=%d | stop_time_updates=%d | feed_ts=%s",
-                    tu_path, len(tu_df), len(stu_df), feed_ts
-                )
-            except Exception:
-                self.logger.error("Failed parsing TripUpdates | path=%s", tu_path, exc_info=True)
-                raise
+            tu_feed = parse_feed(tu_path)
+            feed_ts = feed_ts or feed_timestamp(tu_feed)
+            tu_df, stu_df = self._trip_updates_df(tu_feed, feed_ts)
+            self.logger.info(
+                "Parsed TripUpdates | path=%s | trips=%d | stop_time_updates=%d | feed_ts=%s",
+                tu_path, len(tu_df), len(stu_df), feed_ts
+            )
         else:
             self.logger.warning("Missing TripUpdates file | expected=%s", tu_path)
-            tu_df, stu_df = pd.DataFrame(), pd.DataFrame()
-
-        # Alerts
-        if al_path.exists():
-            try:
-                al_feed = self._parse_feed(al_path)
-                feed_ts = feed_ts or self._feed_timestamp(al_feed)
-                al_df = self._alerts_df(al_feed, feed_ts)
-                self.logger.info("Parsed Alerts | path=%s | rows=%d | feed_ts=%s", al_path, len(al_df), feed_ts)
-            except Exception:
-                self.logger.error("Failed parsing Alerts | path=%s", al_path, exc_info=True)
-                raise
-        else:
-            self.logger.warning("Missing Alerts file | expected=%s", al_path)
-            al_df = pd.DataFrame()
-
-        return SnapshotFrames(
-            snapshot_dir=snapshot_dir,
-            feed_timestamp=feed_ts,
-            vehicle_positions=vp_df,
-            trip_updates=tu_df,
-            trip_update_stop_times=stu_df,
-            alerts=al_df,
-        )

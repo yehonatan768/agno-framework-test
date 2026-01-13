@@ -1,0 +1,8 @@
+mcp:
+  server_name: "planning"
+  allowed_tools:
+    - "list_routes"
+    - "list_stops"
+    - "search_vehicle_by_id"
+    - "vehicles_near_vehicle"
+    - "snapshot_stats"
