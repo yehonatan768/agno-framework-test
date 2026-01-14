@@ -93,7 +93,7 @@ def build_parser() -> argparse.ArgumentParser:
     p_fr = sub.add_parser("fetch-realtime", help="Download realtime GTFS-RT protobuf feeds into dataset/realtime/<ts>/")
     p_fr.add_argument("--stream", action="store_true", help="No-op (kept for symmetry).")
 
-p_team = sub.add_parser("team", help="Run the Orchestrator (Team) that coordinates both agents.")
+    p_team = sub.add_parser("team", help="Run the Orchestrator (Team) that coordinates both agents.")
     _add_common_prompt_args(p_team)
     p_team.add_argument(
         "--mode",
