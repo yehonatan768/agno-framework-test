@@ -15,6 +15,7 @@ from .schemas import (
     NearbyVehicle,
     RouteVehiclesOutput,
     SnapshotStatsOutput,
+    FetchRealtimeOutput,
     EnrichedVehiclesOutput,
 )
 
@@ -23,6 +24,7 @@ from .schemas import (
 #   - src/utils/yaml.py (load_yaml + resolve_path support)
 from src.sources.repository import TransitRepository
 from src.utils.yaml import load_yaml
+from src.sources.gtfs_realtime.fetch import main as fetch_realtime_main
 
 
 def _artifact_dir() -> Path:
@@ -242,3 +244,20 @@ def build_enriched_vehicle_view() -> EnrichedVehiclesOutput:
 
     artifact = _write_df(df, "enriched_vehicle_view", "Realtime vehicle positions enriched with static trips/routes")
     return EnrichedVehiclesOutput(artifact=artifact, join_notes="; ".join(notes))
+
+
+def fetch_realtime() -> FetchRealtimeOutput:
+    """Fetch a new realtime GTFS-RT snapshot into the configured realtime directory."""
+    try:
+        rc = fetch_realtime_main()
+        if rc != 0:
+            return FetchRealtimeOutput(ok=False, snapshot_dir=None, message=f"Realtime fetch failed with exit code {rc}.")
+        # Determine latest snapshot dir via repository paths
+        from src.sources.repository import TransitRepository
+        repo = TransitRepository.from_paths_yaml("src/config/paths.yaml")
+        snap_dir = repo.latest_snapshot_dir()
+        if not snap_dir:
+            return FetchRealtimeOutput(ok=False, snapshot_dir=None, message="Realtime fetch completed but no snapshot directory was found.")
+        return FetchRealtimeOutput(ok=True, snapshot_dir=str(snap_dir), message="Realtime snapshot fetched.")
+    except Exception as e:
+        return FetchRealtimeOutput(ok=False, snapshot_dir=None, message=f"Realtime fetch failed: {e!r}")

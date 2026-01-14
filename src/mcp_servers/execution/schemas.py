@@ -66,3 +66,9 @@ class EnrichedVehiclesOutput(BaseModel):
     """An enriched realtime view written as an artifact."""
     artifact: ArtifactRef
     join_notes: Optional[str] = None
+
+
+class FetchRealtimeOutput(BaseModel):
+    ok: bool
+    snapshot_dir: str | None = None
+    message: str = ""

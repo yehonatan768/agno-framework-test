@@ -55,6 +55,11 @@ def build_enriched_vehicle_view() -> dict:
     return tools.build_enriched_vehicle_view().model_dump()
 
 
+@mcp.tool()
+def fetch_realtime() -> dict:
+    return tools.fetch_realtime().model_dump()
+
+
 def main() -> None:
     mcp.run()
 

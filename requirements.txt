@@ -1,25 +1,48 @@
-# Core
+# ============================================================
+# Core Agent & Orchestration
+# ============================================================
 agno>=1.0.0
-
-# Common runtime utilities
 python-dotenv>=1.0.1
 pydantic>=2.8
 pyyaml>=6.0.2
 rich>=13.7
 tenacity>=8.5
 
+
+# ============================================================
 # HTTP / APIs
+# ============================================================
 httpx>=0.27
 requests>=2.32
 
-# Data / parsing (often needed in real agent/tool work)
+
+# ============================================================
+# Data & Analytics
+# ============================================================
 pandas>=2.2
 numpy>=2.0
 
-# Optional but common for working with streaming / realtime payloads (e.g., GTFS-RT)
-protobuf>=4.25
 
-# If you store agent state / memory locally in sqlite
-# (SQLite is built-in, this is just the Python driver interface)
-# Usually not needed explicitly, but harmless:
+# ============================================================
+# GTFS-Realtime (CRITICAL)
+# ============================================================
+# Provides google.transit.gtfs_realtime_pb2
+gtfs-realtime-bindings>=1.0.0
+
+# Protobuf runtime (pin to safe major)
+protobuf>=4.25,<6
+
+
+# ============================================================
+# Serialization & CLI tooling
+# ============================================================
+orjson>=3.10
+tqdm>=4.66
+
+
+# ============================================================
+# Optional: SQLite persistence for agent memory
+# ============================================================
+# Windows uses builtin sqlite
+# Linux users may need:
 # pysqlite3-binary>=0.5.4 ; platform_system != "Windows"
