@@ -6,7 +6,7 @@ import sys
 from typing import Optional
 
 from src.agents import build_execution_agent, build_planning_agent
-from src.orchestration import build_transit_team
+from src.orchestration.router import build_transit_team
 from src.sources.gtfs_static.fetch import main as fetch_static_main
 from src.sources.gtfs_realtime.fetch import main as fetch_realtime_main
 
@@ -27,27 +27,6 @@ def _read_prompt(prompt: Optional[str]) -> str:
     return data.strip()
 
 
-async def _run_planning(args: argparse.Namespace, s: AppSettings) -> None:
-    agent = build_planning_agent(
-        model_id=s.openai_model,
-        mcp_command=s.planning_mcp_command,
-        show_tool_calls=s.show_tool_calls,
-    )
-    prompt = _read_prompt(args.prompt)
-    await agent.aprint_response(prompt, stream=args.stream)
-
-
-async def _run_execution(args: argparse.Namespace, s: AppSettings) -> None:
-    agent = build_execution_agent(
-        model_id=s.openai_model,
-        mcp_command=s.execution_mcp_command,
-        show_tool_calls=s.show_tool_calls,
-    )
-    prompt = _read_prompt(args.prompt)
-    await agent.aprint_response(prompt, stream=args.stream)
-
-
-
 async def _run_fetch_static(_: argparse.Namespace, __: AppSettings) -> None:
     rc = fetch_static_main()
     if rc != 0:
@@ -60,11 +39,38 @@ async def _run_fetch_realtime(_: argparse.Namespace, __: AppSettings) -> None:
         raise SystemExit(rc)
 
 
+async def _run_planning(args: argparse.Namespace, s: AppSettings) -> None:
+    agent = build_planning_agent(
+        provider=s.planning_llm_provider,
+        model_id=s.planning_llm_model,
+        mcp_command=s.planning_mcp_command,
+        show_tool_calls=s.show_tool_calls,
+    )
+    prompt = _read_prompt(args.prompt)
+    await agent.aprint_response(prompt, stream=args.stream)
+
+
+async def _run_execution(args: argparse.Namespace, s: AppSettings) -> None:
+    agent = build_execution_agent(
+        provider=s.execution_llm_provider,
+        model_id=s.execution_llm_model,
+        mcp_command=s.execution_mcp_command,
+        show_tool_calls=s.show_tool_calls,
+    )
+    prompt = _read_prompt(args.prompt)
+    await agent.aprint_response(prompt, stream=args.stream)
+
+
 async def _run_team(args: argparse.Namespace, s: AppSettings) -> None:
     team = build_transit_team(
         mode=args.mode or s.team_mode,
         respond_directly=args.respond_directly if args.respond_directly is not None else s.team_respond_directly,
-        leader_model_id=s.leader_model,
+        leader_provider=s.leader_llm_provider,
+        leader_model_id=s.leader_llm_model,
+        planning_provider=s.planning_llm_provider,
+        planning_model_id=s.planning_llm_model,
+        execution_provider=s.execution_llm_provider,
+        execution_model_id=s.execution_llm_model,
     )
     prompt = _read_prompt(args.prompt)
     await team.aprint_response(prompt, stream=args.stream)
@@ -86,11 +92,10 @@ def build_parser() -> argparse.ArgumentParser:
     p_exec = sub.add_parser("execution", help="Run the Execution Agent (realtime GTFS-RT only).")
     _add_common_prompt_args(p_exec)
 
-    
     p_fs = sub.add_parser("fetch-static", help="Download + extract the static GTFS feed to dataset/static.")
     p_fs.add_argument("--stream", action="store_true", help="No-op (kept for symmetry).")
 
-    p_fr = sub.add_parser("fetch-realtime", help="Download realtime GTFS-RT protobuf feeds into dataset/realtime/<ts>/")
+    p_fr = sub.add_parser("fetch-realtime", help="Download realtime GTFS-RT feeds into dataset/realtime/<ts>/")
     p_fr.add_argument("--stream", action="store_true", help="No-op (kept for symmetry).")
 
     p_team = sub.add_parser("team", help="Run the Orchestrator (Team) that coordinates both agents.")

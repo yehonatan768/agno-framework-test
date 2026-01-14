@@ -7,7 +7,10 @@ pydantic>=2.8
 pyyaml>=6.0.2
 rich>=13.7
 tenacity>=8.5
-
+# Ollama provider support (choose ONE of the following approaches)
+agno[ollama]
+# MCP runtime (REQUIRED for MCPTools)
+mcp
 
 # ============================================================
 # HTTP / APIs
