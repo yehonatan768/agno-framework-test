@@ -5,7 +5,7 @@ agno>=1.0.0
 agno[ollama]>=1.0.0
 
 # MCP runtime (FastMCP pulls starlette/uvicorn/httpx-sse/etc. transitively)
-mcp>=1.25,<2
+mcp==1.25.0
 
 # ============================================================
 # Settings / Config
@@ -18,8 +18,8 @@ pyyaml>=6.0.2
 # Compatibility pins for MCP stdio stability
 # ============================================================
 # sse-starlette requires anyio>=4.7.0; cap to avoid known regressions in newer anyio.
-anyio>=4.7,<4.12
-httpx>=0.27,<0.29
+anyio==4.9.0
+httpx==0.27.2
 
 # ============================================================
 # HTTP / APIs

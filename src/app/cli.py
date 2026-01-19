@@ -80,6 +80,8 @@ async def _run_team(args: argparse.Namespace, s: AppSettings) -> None:
         planning_model_id=s.planning_llm_model,
         execution_provider=s.execution_llm_provider,
         execution_model_id=s.execution_llm_model,
+        planning_mcp_command=s.planning_mcp_command,
+        execution_mcp_command=s.execution_mcp_command,
     )
     prompt = _read_prompt(args.question)
     await team.aprint_response(prompt, stream=args.stream)

@@ -68,7 +68,6 @@ class AppSettings:
 
         planning_cmd = (_env("PLANNING_MCP_COMMAND", planning_default) or planning_default).strip()
         execution_cmd = (_env("EXECUTION_MCP_COMMAND", execution_default) or execution_default).strip()
-
         team_mode = (_env("TEAM_MODE", "coordinate") or "coordinate").strip()
         team_respond_directly = _env_bool("TEAM_RESPOND_DIRECTLY", False)
         show_tool_calls = _env_bool("SHOW_TOOL_CALLS", True)

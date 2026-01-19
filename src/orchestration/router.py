@@ -22,14 +22,16 @@ Do not skip this step unless the orchestrator explicitly says to use existing lo
 
 def build_transit_team(
     *,
-    mode: str = "coordinate",  # kept for compatibility with your CLI/settings (not used by this Agno version)
-    respond_directly: bool = False,  # kept for compatibility (not used by this Agno version)
+    mode: str = "coordinate",
+    respond_directly: bool = False,
     leader_provider: str = "ollama",
     leader_model_id: str = "llama3.1:8b",
     planning_provider: str = "ollama",
     planning_model_id: str = "llama3.1:8b",
     execution_provider: str = "ollama",
     execution_model_id: str = "llama3.1:8b",
+    planning_mcp_command: str,
+    execution_mcp_command: str,
     planning_include_tools: Optional[Iterable[str]] = None,
     execution_include_tools: Optional[Iterable[str]] = None,
 ) -> Team:
@@ -46,6 +48,7 @@ def build_transit_team(
     planning_agent = build_planning_agent(
         provider=planning_provider,
         model_id=planning_model_id,
+        mcp_command=planning_mcp_command,
         include_tools=planning_include_tools,
     )
     planning_agent.instructions = (planning_agent.instructions or "") + "\n\n" + DELEGATION_PREAMBLE
@@ -53,6 +56,7 @@ def build_transit_team(
     execution_agent = build_execution_agent(
         provider=execution_provider,
         model_id=execution_model_id,
+        mcp_command=execution_mcp_command,
         include_tools=execution_include_tools,
     )
     execution_agent.instructions = (execution_agent.instructions or "") + "\n\n" + DELEGATION_PREAMBLE
