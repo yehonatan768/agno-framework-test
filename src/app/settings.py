@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import os
+import sys
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Optional
@@ -61,10 +62,12 @@ class AppSettings:
         execution_provider = (_env("EXECUTION_LLM_PROVIDER", base_provider) or base_provider).strip()
         execution_model = (_env("EXECUTION_LLM_MODEL", base_model) or base_model).strip()
 
-        planning_cmd = _env("PLANNING_MCP_COMMAND", "python -m src.mcp_servers.planning.server") or \
-                       "python -m src.mcp_servers.planning.server"
-        execution_cmd = _env("EXECUTION_MCP_COMMAND", "python -m src.mcp_servers.execution.server") or \
-                        "python -m src.mcp_servers.execution.server"
+        # IMPORTANT: Use the current interpreter so MCP servers run in the same venv as the CLI.
+        planning_default = f"{sys.executable} -m src.mcp_servers.planning.server"
+        execution_default = f"{sys.executable} -m src.mcp_servers.execution.server"
+
+        planning_cmd = (_env("PLANNING_MCP_COMMAND", planning_default) or planning_default).strip()
+        execution_cmd = (_env("EXECUTION_MCP_COMMAND", execution_default) or execution_default).strip()
 
         team_mode = (_env("TEAM_MODE", "coordinate") or "coordinate").strip()
         team_respond_directly = _env_bool("TEAM_RESPOND_DIRECTLY", False)
