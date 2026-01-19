@@ -14,16 +14,25 @@ from .settings import AppSettings
 
 
 def _add_common_prompt_args(p: argparse.ArgumentParser) -> None:
-    p.add_argument("--prompt", "-p", type=str, default=None, help="Prompt to run once. If omitted, reads from stdin.")
+    # Support both --prompt and --question as synonyms.
+    # The product-style command is --question; --prompt is kept for compatibility.
+    p.add_argument(
+        "--question",
+        "--prompt",
+        "-p",
+        type=str,
+        default=None,
+        help="Question/prompt to run once. If omitted, reads from stdin.",
+    )
     p.add_argument("--stream", action="store_true", help="Stream output tokens (if supported).")
 
 
-def _read_prompt(prompt: Optional[str]) -> str:
-    if prompt and prompt.strip():
-        return prompt.strip()
+def _read_prompt(prompt_or_question: Optional[str]) -> str:
+    if prompt_or_question and prompt_or_question.strip():
+        return prompt_or_question.strip()
     data = sys.stdin.read()
     if not data.strip():
-        raise SystemExit("No prompt provided. Use --prompt or pipe text into stdin.")
+        raise SystemExit("No question provided. Use --question/--prompt or pipe text into stdin.")
     return data.strip()
 
 
@@ -46,7 +55,7 @@ async def _run_planning(args: argparse.Namespace, s: AppSettings) -> None:
         mcp_command=s.planning_mcp_command,
         show_tool_calls=s.show_tool_calls,
     )
-    prompt = _read_prompt(args.prompt)
+    prompt = _read_prompt(args.question)
     await agent.aprint_response(prompt, stream=args.stream)
 
 
@@ -57,7 +66,7 @@ async def _run_execution(args: argparse.Namespace, s: AppSettings) -> None:
         mcp_command=s.execution_mcp_command,
         show_tool_calls=s.show_tool_calls,
     )
-    prompt = _read_prompt(args.prompt)
+    prompt = _read_prompt(args.question)
     await agent.aprint_response(prompt, stream=args.stream)
 
 
@@ -72,7 +81,7 @@ async def _run_team(args: argparse.Namespace, s: AppSettings) -> None:
         execution_provider=s.execution_llm_provider,
         execution_model_id=s.execution_llm_model,
     )
-    prompt = _read_prompt(args.prompt)
+    prompt = _read_prompt(args.question)
     await team.aprint_response(prompt, stream=args.stream)
 
 
@@ -84,7 +93,33 @@ def build_parser() -> argparse.ArgumentParser:
 
     parser.add_argument("--dotenv", type=str, default=".env", help="Path to .env file (default: .env)")
 
-    sub = parser.add_subparsers(dest="cmd", required=True)
+    # Product-style single-command mode:
+    #   py -m src.cli --question "..."
+    # If no subcommand is provided, we route the question through the orchestrator (team).
+    _add_common_prompt_args(parser)
+    parser.add_argument(
+        "--mode",
+        type=str,
+        default=None,
+        choices=["route", "coordinate", "collaborate"],
+        help="(No-subcommand mode only) Override team mode (route|coordinate|collaborate).",
+    )
+    parser.add_argument(
+        "--respond-directly",
+        dest="respond_directly",
+        action="store_true",
+        help="(No-subcommand mode only) Selected member responds directly without leader synthesis.",
+    )
+    parser.add_argument(
+        "--no-respond-directly",
+        dest="respond_directly",
+        action="store_false",
+        help="(No-subcommand mode only) Force leader synthesis.",
+    )
+    parser.set_defaults(respond_directly=None)
+
+    # Keep developer/test subcommands, but do not require them.
+    sub = parser.add_subparsers(dest="cmd", required=False)
 
     p_plan = sub.add_parser("planning", help="Run the Planning Agent (static GTFS only).")
     _add_common_prompt_args(p_plan)
@@ -129,6 +164,12 @@ def main(argv: Optional[list[str]] = None) -> None:
     args = parser.parse_args(argv)
 
     settings = AppSettings.load(args.dotenv)
+
+    # If no subcommand was given, treat this as the user-facing "ask" mode.
+    # Route the question through the orchestrator/team.
+    if args.cmd is None:
+        asyncio.run(_run_team(args, settings))
+        return
 
     if args.cmd == "fetch-static":
         asyncio.run(_run_fetch_static(args, settings))

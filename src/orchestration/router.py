@@ -25,11 +25,11 @@ def build_transit_team(
     mode: str = "coordinate",  # kept for compatibility with your CLI/settings (not used by this Agno version)
     respond_directly: bool = False,  # kept for compatibility (not used by this Agno version)
     leader_provider: str = "ollama",
-    leader_model_id: str = "llama3:8b",
+    leader_model_id: str = "llama3.1:8b",
     planning_provider: str = "ollama",
-    planning_model_id: str = "llama3:8b",
+    planning_model_id: str = "llama3.1:8b",
     execution_provider: str = "ollama",
-    execution_model_id: str = "llama3:8b",
+    execution_model_id: str = "llama3.1:8b",
     planning_include_tools: Optional[Iterable[str]] = None,
     execution_include_tools: Optional[Iterable[str]] = None,
 ) -> Team:

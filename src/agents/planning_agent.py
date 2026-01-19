@@ -13,7 +13,7 @@ from src.orchestration.policies import PLANNING_AGENT_INSTRUCTIONS
 def build_planning_agent(
     *,
     provider: str = "ollama",
-    model_id: str = "llama3:8b",
+    model_id: str = "llama3.1:8b",
     mcp_command: str = "python -m src.mcp_servers.planning.server",
     include_tools: Optional[Iterable[str]] = None,
     exclude_tools: Optional[Iterable[str]] = None,

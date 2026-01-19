@@ -12,13 +12,13 @@ def build_model(*, provider: str, model_id: str) -> Ollama:
 
     Supported:
       provider = "ollama"
-      model_id = e.g. "llama3:8b"
+      model_id = e.g. "llama3.1:8b"
     """
     p = (provider or "").strip().lower()
     if p not in {"ollama", ""}:
         raise ValueError(f"Ollama-only build. Unsupported provider: {p!r}")
 
-    mid = (model_id or "llama3:8b").strip()
+    mid = (model_id or "llama3.1:8b").strip()
 
     return Ollama(
         id=mid,
