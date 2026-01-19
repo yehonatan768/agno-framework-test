@@ -2,15 +2,29 @@
 # Core Agent & Orchestration
 # ============================================================
 agno>=1.0.0
+agno[ollama]
+mcp
+
 python-dotenv>=1.0.1
 pydantic>=2.8
+pydantic-settings>=2.2
 pyyaml>=6.0.2
 rich>=13.7
 tenacity>=8.5
-# Ollama provider support (choose ONE of the following approaches)
-agno[ollama]
-# MCP runtime (REQUIRED for MCPTools)
-mcp
+
+# ============================================================
+# CLI & App Framework (MISSING – REQUIRED)
+# ============================================================
+typer>=0.12
+click>=8.1
+loguru>=0.7
+
+# ============================================================
+# Async / Concurrency (MISSING – REQUIRED)
+# ============================================================
+anyio>=4.4
+asyncio-extras>=1.3
+nest-asyncio>=1.6
 
 # ============================================================
 # HTTP / APIs
@@ -18,34 +32,27 @@ mcp
 httpx>=0.27
 requests>=2.32
 
-
 # ============================================================
 # Data & Analytics
 # ============================================================
 pandas>=2.2
 numpy>=2.0
 
-
 # ============================================================
 # GTFS-Realtime (CRITICAL)
 # ============================================================
-# Provides google.transit.gtfs_realtime_pb2
 gtfs-realtime-bindings>=1.0.0
-
-# Protobuf runtime (pin to safe major)
 protobuf>=4.25,<6
 
-
 # ============================================================
-# Serialization & CLI tooling
+# Serialization & Performance
 # ============================================================
 orjson>=3.10
 tqdm>=4.66
-
 
 # ============================================================
 # Optional: SQLite persistence for agent memory
 # ============================================================
 # Windows uses builtin sqlite
 # Linux users may need:
-# pysqlite3-binary>=0.5.4 ; platform_system != "Windows"
+pysqlite3-binary>=0.5.4 ; platform_system != "Windows"

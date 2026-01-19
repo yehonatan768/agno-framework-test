@@ -46,7 +46,7 @@ if [ ! -f "requirements.txt" ]; then
     exit 1
 fi
 
-pip install -r requirements.mistral.txt
+pip install -r requirements.txt
 
 # -----------------------------------
 # 6. Done

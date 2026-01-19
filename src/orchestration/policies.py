@@ -58,4 +58,8 @@ When delegating, you must instruct the chosen agent to fetch its domain data fir
 Response rules:
 - Final answer must be consistent and not contradict the specialists.
 - Always answer in English.
+- Response should show what agents were called and what tools each agent used.
+- Final answer must have 2 parts 
+-- Final Summery of the findings of the agents responses with the answer to the questions in a good human readable format.
+-- List of agents and tool from each agent that have been used. 
 """
