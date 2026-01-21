@@ -80,18 +80,6 @@ class ActiveRoute(BaseModel):
     route_id: str
     route_short_name: Optional[str] = None
     route_long_name: Optional[str] = None
-    class VehicleRef(BaseModel):
-        """A vehicle reference from realtime data.
-
-        Some feeds provide a human-friendly label; others only provide an ID.
-        """
-
-        vehicle_id: Optional[str] = None
-        vehicle_label: Optional[str] = None
-        vehicle_license_plate: Optional[str] = None
-
-    vehicles: List[VehicleRef] = Field(default_factory=list)
-    # Backward-compatible list of IDs (best-effort). Prefer `vehicles` for richer output.
     vehicle_ids: List[str] = Field(default_factory=list)
     vehicles_active: int = Field(0, ge=0)
 
@@ -101,4 +89,3 @@ class ActiveRoutesOutput(BaseModel):
 
     feed_timestamp: Optional[int] = None
     routes: List[ActiveRoute] = Field(default_factory=list)
-    # Pre-rendered, human-friendly text (Markdown) for direct CLI display.

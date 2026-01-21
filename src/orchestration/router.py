@@ -5,22 +5,18 @@ from typing import Iterable, Optional
 
 from agno.team import Team
 
-from .leader_tools import render_active_routes
-
 from src.llm import build_model
 from src.agents import build_execution_agent, build_planning_agent
 from .policies import TEAM_LEADER_INSTRUCTIONS
 
 
 DELEGATION_PREAMBLE = """\
-You are being invoked by an orchestrator that already prepared the data for this user question.
+When you are invoked by the orchestrator, you MUST start by fetching your domain data:
 
-Data consistency rule:
-- Do NOT call fetch_static(...) or fetch_realtime() unless the orchestrator explicitly asks you to refresh data.
-- Assume all tool calls for this question must operate on the SAME on-disk dataset/snapshot.
+- Planning Agent: call the MCP tool fetch_static(force=false) as the FIRST tool call, then proceed.
+- Execution Agent: call the MCP tool fetch_realtime() as the FIRST tool call, then proceed.
 
-Grounding rule:
-- Do not invent route names, stop names, or vehicle IDs. If data is missing, report it explicitly.
+Do not skip this step unless the orchestrator explicitly says to use existing local data without fetching.
 """
 
 
@@ -65,7 +61,7 @@ def build_transit_team(
     )
     execution_agent.instructions = (execution_agent.instructions or "") + "\n\n" + DELEGATION_PREAMBLE
 
-    team_kwargs = dict(
+    return Team(
         id="transit-team",
         name="Transit Orchestrator",
         model=leader_model,
@@ -74,27 +70,3 @@ def build_transit_team(
         markdown=True,
         show_members_responses=False,
     )
-
-    # Leader-only formatter tool(s): keeps MCP tool outputs strictly machine-readable.
-    try:
-        import inspect
-        if "tools" in inspect.signature(Team).parameters:
-            team_kwargs["tools"] = [render_active_routes]
-    except Exception:
-        # If signature inspection fails, proceed without injecting tools.
-        pass
-
-    return Team(**team_kwargs)
-
-
-# ---------------------------------------------------------------------------
-# Backwards-compatible API
-# ---------------------------------------------------------------------------
-
-def build_team(**kwargs) -> Team:
-    """Backwards-compatible alias.
-
-    Older code paths import `build_team` from this module. The canonical
-    implementation is `build_transit_team`.
-    """
-    return build_transit_team(**kwargs)

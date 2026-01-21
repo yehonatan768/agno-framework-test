@@ -56,11 +56,6 @@ class ProviderConfig:
 
 
 def load_config(config_path: str | Path = "src/config/providers.yaml") -> ProviderConfig:
-    # Allow overriding the providers YAML location via env var.
-    # This is useful when running from different working directories or packaging layouts.
-    env_path = os.environ.get("AGNO_PROVIDERS_YAML") or os.environ.get("PROVIDERS_YAML")
-    if env_path:
-        config_path = env_path
     root = _project_root()
     cfg_path = root / config_path if not Path(config_path).is_absolute() else Path(config_path)
 
