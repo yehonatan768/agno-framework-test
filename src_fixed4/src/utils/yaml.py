@@ -3,19 +3,19 @@ from __future__ import annotations
 import os
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, Dict, Optional
+from typing import Any, Dict
 
 import yaml
 
 
-def _project_root() -> Path:
+def project_root() -> Path:
     """
-    Resolves project root assuming this file lives at: <root>/src/utils/provider_config_loader.py
+    Resolves project root assuming this file lives at: <root>/src/utils/yaml.py
     """
     return Path(__file__).resolve().parents[2]
 
 
-def _deep_get(d: Dict[str, Any], keys: str, default: Any = None) -> Any:
+def deep_get(d: Dict[str, Any], keys: str, default: Any = None) -> Any:
     cur: Any = d
     for k in keys.split("."):
         if not isinstance(cur, dict) or k not in cur:
@@ -24,7 +24,7 @@ def _deep_get(d: Dict[str, Any], keys: str, default: Any = None) -> Any:
     return cur
 
 
-def _resolve_env_placeholders(value: Any) -> Any:
+def resolve_env_placeholders(value: Any) -> Any:
     """
     Simple env var substitution:
       "${ENV_VAR}" -> os.environ.get("ENV_VAR")
@@ -36,45 +36,41 @@ def _resolve_env_placeholders(value: Any) -> Any:
             return os.environ.get(env_name)
         return value
     if isinstance(value, dict):
-        return {k: _resolve_env_placeholders(v) for k, v in value.items()}
+        return {k: resolve_env_placeholders(v) for k, v in value.items()}
     if isinstance(value, list):
-        return [_resolve_env_placeholders(v) for v in value]
+        return [resolve_env_placeholders(v) for v in value]
     return value
 
 
 @dataclass(frozen=True)
-class ProviderConfig:
+class YamlConfig:
     raw: Dict[str, Any]
     root: Path
 
     def get(self, path: str, default: Any = None) -> Any:
-        return _deep_get(self.raw, path, default)
+        return deep_get(self.raw, path, default)
 
     def resolve_path(self, p: str | Path) -> Path:
         p = Path(p)
         return p if p.is_absolute() else (self.root / p)
 
 
-def load_config(config_path: str | Path = "src/config/providers.yaml") -> ProviderConfig:
-    # Allow overriding the providers YAML location via env var.
-    # This is useful when running from different working directories or packaging layouts.
-    env_path = os.environ.get("AGNO_PROVIDERS_YAML") or os.environ.get("PROVIDERS_YAML")
-    if env_path:
-        config_path = env_path
-    root = _project_root()
-    cfg_path = root / config_path if not Path(config_path).is_absolute() else Path(config_path)
+def load_yaml(path: str | Path) -> YamlConfig:
+    root = project_root()
+    p = Path(path)
+    cfg_path = p if p.is_absolute() else (root / p)
 
     if not cfg_path.exists():
-        raise FileNotFoundError(f"Config not found: {cfg_path}")
+        raise FileNotFoundError(f"YAML not found: {cfg_path}")
 
     with cfg_path.open("r", encoding="utf-8") as f:
         raw = yaml.safe_load(f) or {}
 
-    raw = _resolve_env_placeholders(raw)
-    return ProviderConfig(raw=raw, root=root)
+    raw = resolve_env_placeholders(raw)
+    return YamlConfig(raw=raw, root=root)
 
 
-def build_auth_headers_and_params(cfg: ProviderConfig, auth_path: str) -> tuple[Dict[str, str], Dict[str, str]]:
+def build_auth_headers_and_params(cfg: YamlConfig, auth_path: str) -> tuple[dict[str, str], dict[str, str]]:
     """
     Builds (headers, params) based on:
       <auth_path>.mode in {none, header, query}
@@ -86,8 +82,8 @@ def build_auth_headers_and_params(cfg: ProviderConfig, auth_path: str) -> tuple[
     env_var = cfg.get(f"{auth_path}.env_var")
     api_key = os.environ.get(env_var) if env_var else None
 
-    headers: Dict[str, str] = {}
-    params: Dict[str, str] = {}
+    headers: dict[str, str] = {}
+    params: dict[str, str] = {}
 
     if mode == "none":
         return headers, params

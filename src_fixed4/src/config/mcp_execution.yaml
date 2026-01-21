@@ -1,0 +1,8 @@
+mcp:
+  server_name: "execution"
+  allowed_tools:
+    - "load_latest_snapshot"
+    - "load_snapshot_dir"
+    - "load_static_tables"
+    - "join_realtime_with_static"
+    - "compute_vehicle_features"
