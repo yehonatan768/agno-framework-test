@@ -75,11 +75,6 @@ def data_quality_report() -> dict:
     return tools.data_quality_report().model_dump()
 
 
-@mcp.tool()
-def fetch_static(force: bool = False) -> dict:
-    return tools.fetch_static(force=force).model_dump()
-
-
 def main() -> None:
     mcp.run()
 

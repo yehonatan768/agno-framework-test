@@ -312,20 +312,3 @@ def active_routes_with_vehicles() -> ActiveRoutesOutput:
     # Stable ordering: most vehicles first, then route_id
     out.sort(key=lambda r: (-r.vehicles_active, r.route_id))
     return ActiveRoutesOutput(feed_timestamp=getattr(frames, "feed_timestamp", None), routes=out)
-
-
-def fetch_realtime() -> FetchRealtimeOutput:
-    """Fetch a new realtime GTFS-RT snapshot into the configured realtime directory."""
-    try:
-        rc = fetch_realtime_main()
-        if rc != 0:
-            return FetchRealtimeOutput(ok=False, snapshot_dir=None, message=f"Realtime fetch failed with exit code {rc}.")
-        # Determine latest snapshot dir via repository paths
-        from src.sources.repository import TransitRepository
-        repo = TransitRepository.from_paths_yaml("src/config/paths.yaml")
-        snap_dir = repo.latest_snapshot_dir()
-        if not snap_dir:
-            return FetchRealtimeOutput(ok=False, snapshot_dir=None, message="Realtime fetch completed but no snapshot directory was found.")
-        return FetchRealtimeOutput(ok=True, snapshot_dir=str(snap_dir), message="Realtime snapshot fetched.")
-    except Exception as e:
-        return FetchRealtimeOutput(ok=False, snapshot_dir=None, message=f"Realtime fetch failed: {e!r}")
