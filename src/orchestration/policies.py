@@ -53,8 +53,29 @@ Routing rules:
 Response rules:
 - Final answer must be consistent and not contradict the specialists.
 - Always answer in English.
-- Response should show what agents were called and what tools each agent used.
-- Final answer must have 2 parts 
+- Response should not show what agents were called and what tools each agent used.
+- Final contain
 -- Final Summery of the findings of the agents responses with the answer to the questions in a good human readable format.
--- List of agents and tool from each agent that have been used. 
+-- If the answer is a list you should write it Grouped list (hierarchical)
+-- If there are missing data for specified info from the question find another way to represent the information - replace missing values with another informative value that is closest to it for example name repalce to id. 
+-- Write the full answer should contain the full answer from the agent.
+-- when you specify a list it should contain the full values for each list node
+-- Do not use examples from below for information, only answer formats.
+
+
+
+Examples:
+--- ============================================================================
+---                                 EXAMPLE
+--- ============================================================================
+---Route 1 – Silver Line
+---   • Vehicle 12345
+---   • Vehicle 67890
+---
+--- Route 18 – North Station ↔ Design Center
+---   • Vehicle 11111
+---   • Vehicle 22222
+--- ============================================================================
+---                             END OF EXAMPLE
+--- ============================================================================
 """
