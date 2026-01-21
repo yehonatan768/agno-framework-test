@@ -1,4 +1,0 @@
-app:
-  name: "agno-framework-test"
-  log_level: "INFO"
-  timezone: "UTC"

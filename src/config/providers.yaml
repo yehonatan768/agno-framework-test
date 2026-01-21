@@ -13,24 +13,27 @@ provider:
     extract:
 
       # Files To Extract
+      # Prefer table *stems* (no extension). Extraction will match any file in the
+      # downloaded archive whose stem is listed here (e.g. "stops" matches
+      # "stops.txt" or "stops.csv").
       files:
-        - "agency.txt"
-        - "stops.txt"
-        - "routes.txt"
-        - "trips.txt"
-        - "stop_times.txt"
-        - "calendar.txt"
-        - "calendar_dates.txt"
-        - "shapes.txt"
-        - "route_patterns.txt"
-        - "directions.txt"
-        - "transfers.txt"
-        - "pathways.txt"
-        - "levels.txt"
-        - "stop_areas.txt"
-        - "areas.txt"
-        - "timeframes.txt"
-        - "lines.txt"
+        - "agency"
+        - "stops"
+        - "routes"
+        - "trips"
+        - "stop_times"
+        - "calendar"
+        - "calendar_dates"
+        - "shapes"
+        - "route_patterns"
+        - "directions"
+        - "transfers"
+        - "pathways"
+        - "levels"
+        - "stop_areas"
+        - "areas"
+        - "timeframes"
+        - "lines"
 
   realtime:
     type: "gtfs_realtime"

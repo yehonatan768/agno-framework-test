@@ -39,72 +39,111 @@ def _artifact_dir() -> Path:
     cfg = load_yaml("src/config/paths.yaml")
     out = cfg.get("paths.artifacts.execution_dir", "dataset/artifacts/execution")
     p = cfg.resolve_path(out)
-    p.mkdir(parents=True, exist_ok=True)
-    return p
+    p.mkdir(paredef active_routes_with_vehicles(
+    snapshot_id: str | None = None,
+    max_routes: int = 50,
+    max_vehicles_per_route: int = 50,
+) -> ActiveRoutesOutput:
+    """Return the set of routes that currently have at least one vehicle in the latest realtime snapshot.
 
-
-def _write_df(df: pd.DataFrame, name: str, description: Optional[str] = None) -> ArtifactRef:
-    out_dir = _artifact_dir()
-    path = out_dir / f"{name}.csv"
-    df.to_csv(path, index=False)
-    return ArtifactRef(
-        path=str(path),
-        format="csv",
-        rows=int(len(df)),
-        columns=[str(c) for c in df.columns],
-        description=description,
-    )
-
-
-def _ensure_snapshot_dir(repo: TransitRepository, snapshot_dir: Optional[str | Path] = None) -> Path:
-    """Resolve a snapshot directory in a deterministic way.
-
-    Precedence:
-      1) explicit snapshot_dir argument
-      2) TRANSIT_SNAPSHOT_DIR environment variable (set by the CLI/orchestrator per user question)
-      3) repository.latest_snapshot_dir()
+    Notes:
+    - This tool returns *raw, machine-readable data only*. Leader-side rendering is handled by
+      `render_active_routes` (leader-only tool).
+    - If `route_id` is missing in vehicle positions, we attempt to backfill it via static `trips.txt`
+      using `trip_id -> route_id`.
     """
-
-    if snapshot_dir:
-        p = Path(snapshot_dir)
-        if not p.exists():
-            raise FileNotFoundError(f"Snapshot dir does not exist: {p}")
-        return p
-
-    env_dir = (os.getenv("TRANSIT_SNAPSHOT_DIR") or "").strip()
-    if env_dir:
-        p = Path(env_dir)
-        if not p.exists():
-            raise FileNotFoundError(f"TRANSIT_SNAPSHOT_DIR points to missing path: {p}")
-        return p
-
-    latest = repo.latest_snapshot_dir()
-    if latest is None:
-        raise FileNotFoundError("No snapshot directories found under dataset/realtime")
-    return Path(latest)
-
-
-def _haversine_m(lat1: float, lon1: float, lat2: float, lon2: float) -> float:
-    """Distance on Earth in meters."""
-    r = 6371000.0
-    phi1, phi2 = math.radians(lat1), math.radians(lat2)
-    dphi = math.radians(lat2 - lat1)
-    dlambda = math.radians(lon2 - lon1)
-    a = math.sin(dphi / 2) ** 2 + math.cos(phi1) * math.cos(phi2) * math.sin(dlambda / 2) ** 2
-    return 2 * r * math.asin(math.sqrt(a))
-
-
-def load_latest_snapshot() -> LoadSnapshotOutput:
-    """Load the latest realtime snapshot directory and export its tables as artifacts."""
     repo = TransitRepository.from_paths_yaml("src/config/paths.yaml")
-    snap_dir = _ensure_snapshot_dir(repo)
-    frames = repo.load_realtime_snapshot(snap_dir)
 
-    return LoadSnapshotOutput(
-        feed_timestamp=getattr(frames, "feed_timestamp", None),
-        vehicle_positions=_write_df(frames.vehicle_positions, "vehicle_positions", "GTFS-RT vehicle positions"),
-        trip_updates=_write_df(frames.trip_updates, "trip_updates", "GTFS-RT trip updates"),
-        trip_update_stop_times=_write_df(frames.trip_update_stop_times, "trip_update_stop_times", "GTFS-RT stop time updates"),
+    snapshot_dir = _ensure_snapshot_dir(repo, snapshot_id=snapshot_id)
+    frames = repo.load_realtime_snapshot(snapshot_dir=snapshot_dir)
+
+    vp = frames.vehicle_positions.copy()
+    feed_ts = getattr(frames, "feed_timestamp", None)
+
+    if vp.empty:
+        return ActiveRoutesOutput(
+            snapshot_id=snapshot_dir.name,
+            feed_timestamp=str(feed_ts) if feed_ts is not None else None,
+            routes=[],
+        )
+
+    # Backfill route_id from static trips (if needed).
+    if "route_id" not in vp.columns or vp["route_id"].isna().all():
+        static = repo.load_static_tables()
+        trips = getattr(static, "trips", None)
+        if trips is not None and not trips.empty and "trip_id" in vp.columns:
+            vp = vp.merge(
+                trips[["trip_id", "route_id"]].dropna().drop_duplicates(),
+                how="left",
+                on="trip_id",
+                suffixes=("", "_from_trips"),
+            )
+            if "route_id" not in vp.columns and "route_id_from_trips" in vp.columns:
+                vp.rename(columns={"route_id_from_trips": "route_id"}, inplace=True)
+            elif "route_id_from_trips" in vp.columns:
+                vp["route_id"] = vp["route_id"].fillna(vp["route_id_from_trips"])
+                vp.drop(columns=["route_id_from_trips"], inplace=True)
+
+    vp = vp.dropna(subset=["route_id"])
+    if vp.empty:
+        return ActiveRoutesOutput(
+            snapshot_id=snapshot_dir.name,
+            feed_timestamp=str(feed_ts) if feed_ts is not None else None,
+            routes=[],
+        )
+
+    static = repo.load_static_tables()
+    routes_df = getattr(static, "routes", None)
+
+    # Aggregate vehicles by route.
+    routes_out: list[ActiveRoute] = []
+    for route_id, grp in vp.groupby("route_id"):
+        # Prefer stable vehicle identifiers; fall back to label if needed.
+        vehicles_rows = grp.sort_values(by=[c for c in ["timestamp", "vehicle_id", "vehicle_label"] if c in grp.columns], ascending=False)
+
+        vehicles: list[VehicleInfo] = []
+        for _, row in vehicles_rows.head(max_vehicles_per_route).iterrows():
+            vehicles.append(
+                VehicleInfo(
+                    vehicle_id=str(row.get("vehicle_id") or ""),
+                    vehicle_label=row.get("vehicle_label"),
+                    latitude=row.get("latitude"),
+                    longitude=row.get("longitude"),
+                    bearing=row.get("bearing"),
+                    speed=row.get("speed"),
+                    timestamp=str(row.get("timestamp")) if row.get("timestamp") is not None else None,
+                )
+            )
+
+        route_short_name = None
+        route_long_name = None
+        if routes_df is not None and not routes_df.empty and "route_id" in routes_df.columns:
+            hit = routes_df.loc[routes_df["route_id"] == route_id]
+            if not hit.empty:
+                if "route_short_name" in hit.columns:
+                    route_short_name = hit.iloc[0].get("route_short_name")
+                if "route_long_name" in hit.columns:
+                    route_long_name = hit.iloc[0].get("route_long_name")
+
+        routes_out.append(
+            ActiveRoute(
+                route_id=str(route_id),
+                route_short_name=route_short_name,
+                route_long_name=route_long_name,
+                vehicle_count=int(grp["vehicle_id"].nunique()) if "vehicle_id" in grp.columns else int(len(grp)),
+                vehicles=vehicles,
+            )
+        )
+
+    routes_out.sort(key=lambda r: r.vehicle_count, reverse=True)
+    routes_out = routes_out[:max_routes]
+
+    return ActiveRoutesOutput(
+        snapshot_id=snapshot_dir.name,
+        feed_timestamp=str(feed_ts) if feed_ts is not None else None,
+        routes=routes_out,
+    )
+s.trip_update_stop_times, "trip_update_stop_times", "GTFS-RT stop time updates"),
         alerts=_write_df(frames.alerts, "alerts", "GTFS-RT alerts"),
     )
 
@@ -274,7 +313,7 @@ def build_enriched_vehicle_view() -> EnrichedVehiclesOutput:
     return EnrichedVehiclesOutput(artifact=artifact, join_notes="; ".join(notes))
 
 
-def active_routes_with_vehicles() -> ActiveRoutesOutput:
+def     active_routes_with_vehicles() -> ActiveRoutesOutput:
     """Return routes that currently have at least one active vehicle, enriched with static route names.
 
     This is the canonical answer-tool for questions like:

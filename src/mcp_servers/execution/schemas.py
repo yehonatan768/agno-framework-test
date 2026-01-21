@@ -102,4 +102,3 @@ class ActiveRoutesOutput(BaseModel):
     feed_timestamp: Optional[int] = None
     routes: List[ActiveRoute] = Field(default_factory=list)
     # Pre-rendered, human-friendly text (Markdown) for direct CLI display.
-    human_readable: Optional[str] = None

@@ -1,4 +1,0 @@
-paths:
-  dataset:
-    static_dir: "dataset/static"
-    realtime_dir: "dataset/realtime"

@@ -5,6 +5,8 @@ from typing import Iterable, Optional
 
 from agno.team import Team
 
+from .leader_tools import render_active_routes
+
 from src.llm import build_model
 from src.agents import build_execution_agent, build_planning_agent
 from .policies import TEAM_LEADER_INSTRUCTIONS
@@ -63,7 +65,7 @@ def build_transit_team(
     )
     execution_agent.instructions = (execution_agent.instructions or "") + "\n\n" + DELEGATION_PREAMBLE
 
-    return Team(
+    team_kwargs = dict(
         id="transit-team",
         name="Transit Orchestrator",
         model=leader_model,
@@ -72,3 +74,27 @@ def build_transit_team(
         markdown=True,
         show_members_responses=False,
     )
+
+    # Leader-only formatter tool(s): keeps MCP tool outputs strictly machine-readable.
+    try:
+        import inspect
+        if "tools" in inspect.signature(Team).parameters:
+            team_kwargs["tools"] = [render_active_routes]
+    except Exception:
+        # If signature inspection fails, proceed without injecting tools.
+        pass
+
+    return Team(**team_kwargs)
+
+
+# ---------------------------------------------------------------------------
+# Backwards-compatible API
+# ---------------------------------------------------------------------------
+
+def build_team(**kwargs) -> Team:
+    """Backwards-compatible alias.
+
+    Older code paths import `build_team` from this module. The canonical
+    implementation is `build_transit_team`.
+    """
+    return build_transit_team(**kwargs)
