@@ -15,7 +15,6 @@ from .schemas import (
     NearbyVehicle,
     RouteVehiclesOutput,
     SnapshotStatsOutput,
-    FetchRealtimeOutput,
     EnrichedVehiclesOutput,
     ActiveRoutesOutput,
     ActiveRoute,

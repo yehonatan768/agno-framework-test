@@ -24,8 +24,6 @@ from .schemas import (
 )
 
 from src.utils.yaml import load_yaml
-from src.sources.gtfs_static.fetch import main as fetch_static_main
-from src.sources.gtfs_static.reader import read_static_dir_from_yaml
 
 
 def _artifact_dir() -> Path:

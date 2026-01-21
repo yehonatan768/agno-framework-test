@@ -68,12 +68,6 @@ class EnrichedVehiclesOutput(BaseModel):
     join_notes: Optional[str] = None
 
 
-class FetchRealtimeOutput(BaseModel):
-    ok: bool
-    snapshot_dir: str | None = None
-    message: str = ""
-
-
 class ActiveRoute(BaseModel):
     """A route that currently has at least one active vehicle."""
 

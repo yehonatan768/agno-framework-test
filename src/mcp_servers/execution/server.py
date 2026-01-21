@@ -61,7 +61,6 @@ def active_routes_with_vehicles() -> dict:
     return tools.active_routes_with_vehicles().model_dump()
 
 
-
 def main() -> None:
     mcp.run()
 

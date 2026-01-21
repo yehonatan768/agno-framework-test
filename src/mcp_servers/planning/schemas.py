@@ -87,11 +87,3 @@ class IntegrityReportOutput(BaseModel):
 class DataQualityReportOutput(BaseModel):
     summary: Dict[str, Any]
     artifacts: Dict[str, ArtifactRef] = Field(default_factory=dict)
-
-
-class FetchStaticOutput(BaseModel):
-    ok: bool
-    static_dir: str
-    missing_before: list[str] = []
-    missing_after: list[str] = []
-    message: str = ""

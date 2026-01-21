@@ -10,16 +10,6 @@ from src.agents import build_execution_agent, build_planning_agent
 from .policies import TEAM_LEADER_INSTRUCTIONS
 
 
-DELEGATION_PREAMBLE = """\
-When you are invoked by the orchestrator, you MUST start by fetching your domain data:
-
-- Planning Agent: call the MCP tool fetch_static(force=false) as the FIRST tool call, then proceed.
-- Execution Agent: call the MCP tool fetch_realtime() as the FIRST tool call, then proceed.
-
-Do not skip this step unless the orchestrator explicitly says to use existing local data without fetching.
-"""
-
-
 def build_transit_team(
     *,
     mode: str = "coordinate",
@@ -51,7 +41,7 @@ def build_transit_team(
         mcp_command=planning_mcp_command,
         include_tools=planning_include_tools,
     )
-    planning_agent.instructions = (planning_agent.instructions or "") + "\n\n" + DELEGATION_PREAMBLE
+    planning_agent.instructions = (planning_agent.instructions or "")
 
     execution_agent = build_execution_agent(
         provider=execution_provider,
@@ -59,7 +49,7 @@ def build_transit_team(
         mcp_command=execution_mcp_command,
         include_tools=execution_include_tools,
     )
-    execution_agent.instructions = (execution_agent.instructions or "") + "\n\n" + DELEGATION_PREAMBLE
+    execution_agent.instructions = (execution_agent.instructions or "")
 
     return Team(
         id="transit-team",
