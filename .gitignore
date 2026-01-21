@@ -18,6 +18,7 @@ venv/
 # Data & models
 realtime/
 static/
+artifacts/
 questions_for_agents
 *.pkl
 *.pt
