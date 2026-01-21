@@ -3,7 +3,7 @@ from __future__ import annotations
 import logging
 from pathlib import Path
 import zipfile
-from typing import Iterable, Set, Tuple, Optional
+from typing import Set, Tuple, Optional
 
 import requests
 
@@ -28,6 +28,24 @@ def download_file(url: str, out_path: Path, timeout_s: int = 60, verify_tls: boo
     return total, content_type
 
 
+def _split_allowed(allowed: Set[str]) -> Tuple[Set[str], Set[str]]:
+    """Return (allowed_exact_filenames, allowed_stems).
+
+    - If an entry contains a dot, it is treated as an exact filename match.
+    - Otherwise it is treated as a stem match (e.g. "stops" matches "stops.txt" or "stops.csv").
+    """
+    allowed_exact = {a for a in allowed if "." in Path(a).name}
+    allowed_stems = {a for a in allowed if a and "." not in Path(a).name}
+    return allowed_exact, allowed_stems
+
+
+def _is_allowed(base_name: str, allowed_exact: Set[str], allowed_stems: Set[str]) -> bool:
+    if base_name in allowed_exact:
+        return True
+    stem = Path(base_name).stem
+    return stem in allowed_stems
+
+
 def extract_zip_include_only(zip_path: Path, out_dir: Path, allowed_files: Set[str]) -> Tuple[int, int]:
     """
     Extract ONLY allowed_files, matching by base filename (Path(member).name).
@@ -37,6 +55,8 @@ def extract_zip_include_only(zip_path: Path, out_dir: Path, allowed_files: Set[s
     out_dir.mkdir(parents=True, exist_ok=True)
     extracted = 0
     skipped = 0
+
+    allowed_exact, allowed_stems = _split_allowed(allowed_files)
 
     with zipfile.ZipFile(zip_path, "r") as zf:
         members = zf.infolist()
@@ -51,7 +71,7 @@ def extract_zip_include_only(zip_path: Path, out_dir: Path, allowed_files: Set[s
                 skipped += 1
                 continue
 
-            if base_name not in allowed_files:
+            if not _is_allowed(base_name, allowed_exact, allowed_stems):
                 skipped += 1
                 continue
 
@@ -64,34 +84,25 @@ def extract_zip_include_only(zip_path: Path, out_dir: Path, allowed_files: Set[s
     return extracted, skipped
 
 
+def _cleanup_out_dir_keep_only(out_dir: Path, allowed_files: Set[str]) -> None:
+    """Best-effort cleanup so the static directory contains only the allow-listed tables.
 
-def cleanup_out_dir(out_dir: Path, allowed_files: Set[str]) -> Tuple[int, int]:
-    """Remove previously-extracted files that are not in the current allow-list.
-
-    This solves the common confusion where the allow-list is changed, but old files
-    remain in the folder, making it look like we "extracted everything".
-    Returns (deleted_count, kept_count).
+    When allow-list entries are stems (no extension), we keep any file whose stem matches.
     """
-    deleted = 0
-    kept = 0
-    # only manage top-level files we extract (flattened)
+    allowed_exact, allowed_stems = _split_allowed(allowed_files)
+
     for p in out_dir.iterdir():
         if not p.is_file():
             continue
-        name = p.name
-        if name in allowed_files:
-            kept += 1
+        base = p.name
+        if _is_allowed(base, allowed_exact, allowed_stems):
             continue
-        # be conservative: only delete typical GTFS artifacts
-        if name.endswith((".txt", ".csv", ".json", ".pb", ".pbf", ".zip")):
-            try:
-                p.unlink()
-                deleted += 1
-            except Exception:
-                logger.warning("Failed to delete stale file | path=%s", p, exc_info=True)
-        else:
-            kept += 1
-    return deleted, kept
+        try:
+            p.unlink()
+            logger.info("Removed non-allowlisted static file | path=%s", p)
+        except Exception:
+            logger.warning("Failed to remove non-allowlisted static file | path=%s", p, exc_info=True)
+
 
 def main() -> int:
     cfg = load_config()
@@ -119,33 +130,49 @@ def main() -> int:
             "You must explicitly list which GTFS files to extract."
         )
 
-    # warn about likely mistakes (e.g., 'calendar' instead of 'calendar.txt')
-    suspicious = [f for f in allowed if "." not in f]
-    if suspicious:
-        logger.warning("Some allowed filenames have no extension (likely typo): %s", suspicious)
-
-    # Ensure the output directory reflects *only* the current allow-list.
-    # Without this, old files remain and it can look like we extracted everything.
-    clean = bool(cfg.get("provider.static.extract.clean_out_dir", True))
-    if clean:
-        deleted, kept = cleanup_out_dir(out_dir=out_dir, allowed_files=allowed)
-        if deleted:
-            logger.info("Cleaned static out_dir | deleted=%d | kept=%d | out_dir=%s", deleted, kept, out_dir)
+    # NOTE: allowed entries may intentionally be stems without extensions.
 
     zip_path = out_dir / filename
-    bytes_written, content_type = download_file(url=url, out_path=zip_path, timeout_s=timeout_s, verify_tls=verify_tls)
-    logger.info("Downloaded static GTFS ZIP | bytes=%d | content_type=%s | path=%s", bytes_written, content_type, zip_path)
 
+    logger.info("Static GTFS download started | url=%s | zip_path=%s", url, zip_path)
+    bytes_written, content_type = download_file(url=url, out_path=zip_path, timeout_s=timeout_s, verify_tls=verify_tls)
+    logger.info("Static GTFS downloaded | bytes=%d | content_type=%s | path=%s", bytes_written, content_type, zip_path)
+
+    logger.info("Static extraction started | out_dir=%s | allow_list=%d", out_dir, len(allowed))
     extracted, skipped = extract_zip_include_only(zip_path=zip_path, out_dir=out_dir, allowed_files=allowed)
-    logger.info(
-        "Extracted static GTFS files (allow-list) | extracted=%d | skipped=%d | out_dir=%s",
-        extracted,
-        skipped,
-        out_dir,
-    )
+
+    # keep directory tidy (especially if previous runs extracted other files)
+    _cleanup_out_dir_keep_only(out_dir=out_dir, allowed_files=allowed)
+
+    # high-signal check: did we miss any requested files?
+    # high-signal check: did we miss any requested stems/filenames?
+    present_basenames = {p.name for p in out_dir.iterdir() if p.is_file()}
+    present_stems = {p.stem for p in out_dir.iterdir() if p.is_file()}
+    allowed_exact, allowed_stems = _split_allowed(allowed)
+    missing_exact = sorted([f for f in allowed_exact if f not in present_basenames])
+    missing_stems = sorted([s for s in allowed_stems if s not in present_stems])
+    if missing_exact or missing_stems:
+        logger.warning(
+            "Some requested static tables were not found in the ZIP (not extracted) | missing_exact=%s | missing_stems=%s",
+            missing_exact,
+            missing_stems,
+        )
+
+    logger.info("Static extraction completed | extracted=%d | skipped=%d | out_dir=%s", extracted, skipped, out_dir)
+
+    try:
+        zip_path.unlink()
+        logger.info("Deleted static zip | path=%s", zip_path)
+    except Exception:
+        logger.error("Failed to delete static zip | path=%s", zip_path, exc_info=True)
+        raise
 
     return 0
 
 
 if __name__ == "__main__":
+    logging.basicConfig(
+        level=logging.INFO,
+        format="%(asctime)s | %(levelname)s | %(name)s | %(message)s",
+    )
     raise SystemExit(main())
