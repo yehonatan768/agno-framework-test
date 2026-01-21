@@ -21,8 +21,37 @@ def _table_key_from_filename(filename: str) -> str:
     stop_times.txt -> stop_times
     """
     name = Path(filename).name
-    stem = name[:-4] if name.lower().endswith(".txt") else Path(name).stem
-    return stem.strip().lower()
+    return Path(name).stem.strip().lower()
+
+
+def _resolve_table_filename(static_dir: Path, entry: str) -> str:
+    """Resolve a config entry to an on-disk filename.
+
+    providers.yaml is allowed to list either:
+      - an exact filename ("stops.txt", "stops.csv", ...)
+      - or a stem ("stops") in which case we select the matching file
+        regardless of extension.
+    """
+    entry = (entry or "").strip()
+    if not entry:
+        return entry
+
+    # Exact filename specified.
+    if "." in Path(entry).name:
+        return Path(entry).name
+
+    stem = Path(entry).stem
+    candidates = [p for p in static_dir.iterdir() if p.is_file() and p.stem == stem]
+    if not candidates:
+        raise FileNotFoundError(
+            f"Static table '{stem}' not found in {static_dir}. "
+            f"Expected a file named '{stem}.*'."
+        )
+
+    # Deterministic selection: prefer common GTFS extensions first.
+    ext_priority = {".txt": 0, ".csv": 1}
+    candidates.sort(key=lambda p: (ext_priority.get(p.suffix.lower(), 9), p.suffix.lower(), p.name.lower()))
+    return candidates[0].name
 
 
 def read_gtfs_table(static_dir: str | Path, filename: str, **read_csv_kwargs) -> pd.DataFrame:
@@ -53,8 +82,9 @@ def read_static_dir_from_yaml(
     d = Path(static_dir)
     tables: Dict[str, pd.DataFrame] = {}
 
-    for fn in files:
-        key = _table_key_from_filename(str(fn))
-        tables[key] = read_gtfs_table(d, str(fn))
+    for entry in files:
+        resolved = _resolve_table_filename(d, str(entry))
+        key = _table_key_from_filename(resolved)
+        tables[key] = read_gtfs_table(d, resolved)
 
     return StaticReadResult(static_dir=d, tables=tables)

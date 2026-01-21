@@ -41,10 +41,21 @@ class SnapshotLoader:
             if not e.HasField("vehicle"):
                 continue
             v = e.vehicle
+            # VehicleDescriptor commonly contains id, label (a human-friendly identifier),
+            # and license_plate. We capture these so downstream tools can render nicer output.
+            veh_id = None
+            veh_label = None
+            veh_plate = None
+            if v.HasField("vehicle"):
+                veh_id = v.vehicle.id if v.vehicle.id else None
+                veh_label = v.vehicle.label if v.vehicle.label else None
+                veh_plate = v.vehicle.license_plate if v.vehicle.license_plate else None
             row: Dict[str, Any] = {
                 "feed_timestamp": feed_ts,
                 "entity_id": e.id or None,
-                "vehicle_id": v.vehicle.id if v.HasField("vehicle") else None,
+                "vehicle_id": veh_id,
+                "vehicle_label": veh_label,
+                "vehicle_license_plate": veh_plate,
                 "trip_id": v.trip.trip_id if v.HasField("trip") and v.trip.trip_id else None,
                 "route_id": v.trip.route_id if v.HasField("trip") and v.trip.route_id else None,
                 "direction_id": int(v.trip.direction_id) if v.HasField("trip") and v.trip.HasField("direction_id") else None,
@@ -157,3 +168,24 @@ class SnapshotLoader:
             )
         else:
             self.logger.warning("Missing TripUpdates file | expected=%s", tu_path)
+
+            tu_df = pd.DataFrame()
+            stu_df = pd.DataFrame()
+
+        if al_path.exists():
+            al_feed = parse_feed(al_path)
+            feed_ts = feed_ts or feed_timestamp(al_feed)
+            al_df = self._alerts_df(al_feed, feed_ts)
+            self.logger.info("Parsed Alerts | path=%s | rows=%d | feed_ts=%s", al_path, len(al_df), feed_ts)
+        else:
+            self.logger.warning("Missing Alerts file | expected=%s", al_path)
+            al_df = pd.DataFrame()
+
+        return SnapshotFrames(
+            snapshot_dir=snapshot_dir,
+            feed_timestamp=feed_ts,
+            vehicle_positions=vp_df,
+            trip_updates=tu_df,
+            trip_update_stop_times=stu_df,
+            alerts=al_df,
+        )
