@@ -144,7 +144,6 @@ def main() -> int:
     # keep directory tidy (especially if previous runs extracted other files)
     _cleanup_out_dir_keep_only(out_dir=out_dir, allowed_files=allowed)
 
-    # high-signal check: did we miss any requested files?
     # high-signal check: did we miss any requested stems/filenames?
     present_basenames = {p.name for p in out_dir.iterdir() if p.is_file()}
     present_stems = {p.stem for p in out_dir.iterdir() if p.is_file()}
@@ -160,9 +159,13 @@ def main() -> int:
 
     logger.info("Static extraction completed | extracted=%d | skipped=%d | out_dir=%s", extracted, skipped, out_dir)
 
+    # Best-effort cleanup. If the ZIP is already gone (e.g., concurrent runs or manual cleanup),
+    # do not fail the whole fetch.
     try:
         zip_path.unlink()
         logger.info("Deleted static zip | path=%s", zip_path)
+    except FileNotFoundError:
+        logger.warning("Static zip already deleted | path=%s", zip_path)
     except Exception:
         logger.error("Failed to delete static zip | path=%s", zip_path, exc_info=True)
         raise

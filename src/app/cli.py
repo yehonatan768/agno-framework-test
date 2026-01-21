@@ -7,8 +7,7 @@ from typing import Optional
 
 from src.agents import build_execution_agent, build_planning_agent
 from src.orchestration.router import build_transit_team
-from src.sources.gtfs_static.fetch import main as fetch_static_main
-from src.sources.gtfs_realtime.fetch import main as fetch_realtime_main
+from src.sources.fetch import fetch_all
 
 from .settings import AppSettings
 
@@ -34,18 +33,6 @@ def _read_prompt(prompt_or_question: Optional[str]) -> str:
     if not data.strip():
         raise SystemExit("No question provided. Use --question/--prompt or pipe text into stdin.")
     return data.strip()
-
-
-async def _run_fetch_static(_: argparse.Namespace, __: AppSettings) -> None:
-    rc = fetch_static_main()
-    if rc != 0:
-        raise SystemExit(rc)
-
-
-async def _run_fetch_realtime(_: argparse.Namespace, __: AppSettings) -> None:
-    rc = fetch_realtime_main()
-    if rc != 0:
-        raise SystemExit(rc)
 
 
 async def _run_planning(args: argparse.Namespace, s: AppSettings) -> None:
@@ -239,18 +226,13 @@ def main(argv: Optional[list[str]] = None) -> None:
 
     settings = AppSettings.load(args.dotenv)
 
+    fetch_all()
     # If no subcommand was given, treat this as the user-facing "ask" mode.
     # Route the question through the orchestrator/team.
     if args.cmd is None:
         asyncio.run(_run_team(args, settings))
         return
 
-    if args.cmd == "fetch-static":
-        asyncio.run(_run_fetch_static(args, settings))
-    elif args.cmd == "fetch-realtime":
-        asyncio.run(_run_fetch_realtime(args, settings))
-    elif args.cmd == "planning":
-        asyncio.run(_run_planning(args, settings))
     elif args.cmd == "execution":
         asyncio.run(_run_execution(args, settings))
     elif args.cmd == "team":
